@@ -8,6 +8,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 from scipy import stats
 from scipy.stats import kurtosis, skew
+from feature_description_dashboard import FeatureDescriptionDashboard
 
 # Import custom modules
 try:
@@ -27,6 +28,133 @@ except ImportError:
         return None
 
 import pickle
+
+# Add this after your imports but before the main app code
+
+st.set_page_config(
+    page_title="Swimming Stroke Recognition",
+    page_icon="assets/logo.png",
+    layout="wide",
+    initial_sidebar_state="collapsed"  # Hide sidebar
+)
+
+SWIMMING_FEATURE_INFO = [
+    # Motion Features (8 features)
+    {
+        "Feature": "acc_mean",
+        "Type": "Motion",
+        "Signal Source": "Acceleration magnitude",
+        "Meaning": "Average acceleration magnitude in the 2-second window",
+        "Why Useful": "Indicates overall swimming intensity - higher for powerful strokes like butterfly"
+    },
+    {
+        "Feature": "acc_rms",
+        "Type": "Motion", 
+        "Signal Source": "Acceleration magnitude",
+        "Meaning": "Root Mean Square (RMS) of acceleration",
+        "Why Useful": "Measures swimming energy/power - distinguishes high-energy strokes"
+    },
+    {
+        "Feature": "acc_std",
+        "Type": "Motion",
+        "Signal Source": "Acceleration magnitude",
+        "Meaning": "Standard deviation of acceleration",
+        "Why Useful": "Measures acceleration variability - indicates stroke smoothness"
+    },
+    {
+        "Feature": "acc_p2p",
+        "Type": "Motion",
+        "Signal Source": "Acceleration magnitude",
+        "Meaning": "Peak-to-peak range (max - min) of acceleration",
+        "Why Useful": "Shows acceleration extremes - high for explosive strokes"
+    },
+    {
+        "Feature": "gyro_mean",
+        "Type": "Motion",
+        "Signal Source": "Gyroscope magnitude",
+        "Meaning": "Average rotation magnitude in the 2-second window",
+        "Why Useful": "Indicates overall body rotation - higher for rotational strokes"
+    },
+    {
+        "Feature": "gyro_rms",
+        "Type": "Motion",
+        "Signal Source": "Gyroscope magnitude",
+        "Meaning": "Root Mean Square (RMS) of rotation",
+        "Why Useful": "Measures rotation energy - distinguishes stroke rotation patterns"
+    },
+    {
+        "Feature": "gyro_std",
+        "Type": "Motion",
+        "Signal Source": "Gyroscope magnitude",
+        "Meaning": "Standard deviation of rotation",
+        "Why Useful": "Measures rotation consistency - low for smooth strokes"
+    },
+    {
+        "Feature": "gyro_p2p",
+        "Type": "Motion",
+        "Signal Source": "Gyroscope magnitude",
+        "Meaning": "Peak-to-peak range of rotation",
+        "Why Useful": "Shows rotation extremes - identifies stroke reversals"
+    },
+    
+    # Shape Features (8 features)
+    {
+        "Feature": "pitch_kurtosis",
+        "Type": "Shape",
+        "Signal Source": "Pitch angle",
+        "Meaning": "Kurtosis (tailedness) of pitch distribution",
+        "Why Useful": "Indicates sharpness of pitch changes - high for butterfly undulation"
+    },
+    {
+        "Feature": "pitch_skewness",
+        "Type": "Shape",
+        "Signal Source": "Pitch angle",
+        "Meaning": "Skewness (asymmetry) of pitch distribution",
+        "Why Useful": "Shows pitch direction bias - different for each stroke"
+    },
+    {
+        "Feature": "pitch_peak_count",
+        "Type": "Shape",
+        "Signal Source": "Pitch angle",
+        "Meaning": "Number of pitch peaks in the 2-second window",
+        "Why Useful": "Counts body undulations - stroke cycle indicator"
+    },
+    {
+        "Feature": "roll_asymmetry",
+        "Type": "Shape",
+        "Signal Source": "Roll angle",
+        "Meaning": "Difference between right and left roll averages",
+        "Why Useful": "Measures body roll symmetry - distinguishes asymmetric strokes"
+    },
+    {
+        "Feature": "stroke_frequency",
+        "Type": "Shape",
+        "Signal Source": "Gyroscope Z-axis",
+        "Meaning": "Estimated stroke cycles per second (Hz)",
+        "Why Useful": "Stroke rate - varies between stroke types"
+    },
+    {
+        "Feature": "stroke_rhythm_cv",
+        "Type": "Shape",
+        "Signal Source": "Gyroscope Z-axis",
+        "Meaning": "Coefficient of variation in stroke timing",
+        "Why Useful": "Measures stroke rhythm consistency - low for breaststroke"
+    },
+    {
+        "Feature": "gyro_kurtosis",
+        "Type": "Shape",
+        "Signal Source": "Gyroscope magnitude",
+        "Meaning": "Kurtosis of rotation distribution",
+        "Why Useful": "Indicates rotation pattern sharpness"
+    },
+    {
+        "Feature": "gyro_skewness",
+        "Type": "Shape",
+        "Signal Source": "Gyroscope magnitude",
+        "Meaning": "Skewness of rotation distribution",
+        "Why Useful": "Shows rotation direction bias"
+    }
+]
 
 
 # ==========================
@@ -885,10 +1013,7 @@ if st.session_state.df is not None:
         
         csv_data = features_df.to_csv(index=False).encode("utf-8")
         
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.download_button(
+        st.download_button(
                 label="📥 Download Features as CSV",
                 data=csv_data,
                 file_name="swimming_features_2s_windows.csv",
@@ -896,46 +1021,15 @@ if st.session_state.df is not None:
                 key="download_csv"
             )
         
-        with col2:
-            # Show feature summary based on swimming features
-            feature_summary = pd.DataFrame({
-                "Feature Type": ["Motion"] * 8 + ["Shape"] * 8,
-                "Feature Name": [
-                    # Motion features (8)
-                    "Acceleration Mean", "Acceleration RMS", "Acceleration Std", "Acceleration Peak-to-Peak",
-                    "Gyroscope Mean", "Gyroscope RMS", "Gyroscope Std", "Gyroscope Peak-to-Peak",
-                    # Shape features (8)
-                    "Pitch Kurtosis", "Pitch Skewness", "Pitch Peak Count", "Roll Asymmetry",
-                    "Stroke Frequency", "Stroke Rhythm CV", "Gyro Kurtosis", "Gyro Skewness"
-                ],
-                "Description": [
-                    # Motion features
-                    "Average acceleration magnitude",
-                    "Root mean square (acceleration energy)",
-                    "Acceleration variability",
-                    "Range from min to max acceleration",
-                    "Average gyroscope magnitude",
-                    "Root mean square (rotation energy)",
-                    "Gyroscope variability",
-                    "Range from min to max rotation",
-                    # Shape features
-                    "Tailedness of pitch distribution",
-                    "Asymmetry of pitch movement",
-                    "Number of pitch peaks in window",
-                    "Difference between left/right body roll",
-                    "Stroke cycles per second",
-                    "Consistency of stroke timing",
-                    "Tailedness of rotation distribution",
-                    "Asymmetry of rotation patterns"
-                ]
-            })
-            
-            with st.expander("📚 Feature Descriptions", expanded=False):
-                st.dataframe(feature_summary, use_container_width=True)
-        
         # ==========================
         # 6. MOTION FEATURES EXPLORER
         # ==========================
+        
+    
+        feature_dashboard = FeatureDescriptionDashboard(SWIMMING_FEATURE_INFO)
+        feature_dashboard.render_dashboard(features_df)
+        
+        
         st.markdown("---")
         st.subheader("⚡ Motion Features Explorer")
         
