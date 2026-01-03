@@ -33,7 +33,7 @@ import pickle
 
 st.set_page_config(
     page_title="Swimming Stroke Recognition",
-    page_icon="assets/logo.png",
+    page_icon="assets/favicon.ico",
     layout="wide",
     initial_sidebar_state="collapsed"  # Hide sidebar
 )
