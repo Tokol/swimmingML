@@ -35,7 +35,7 @@ st.set_page_config(
     page_title="Swimming Stroke Recognition",
     page_icon="assets/favicon.ico",
     layout="wide",
-    initial_sidebar_state="collapsed"  # Hide sidebar
+    initial_sidebar_state="expanded"  # Hide sidebar
 )
 
 SWIMMING_FEATURE_INFO = [
