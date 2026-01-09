@@ -378,7 +378,9 @@ def create_knn_performance_plots(metrics, data_info):
 
     # 2. Confusion Matrix Heatmap
     cm = metrics['confusion_matrix']
-    classes = np.unique(metrics['true_labels'])
+    y_true = metrics['true_labels']
+    y_pred = metrics['predictions']
+    classes = sorted(np.unique(np.concatenate([y_true, y_pred])))
     class_names = [cls.replace('_', ' ').title() for cls in classes]
 
     fig_cm = go.Figure(data=go.Heatmap(

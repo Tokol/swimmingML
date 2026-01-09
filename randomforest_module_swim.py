@@ -381,7 +381,9 @@ def create_rf_performance_plots(metrics, data_info):
 
     # 2. Confusion Matrix
     cm = metrics['confusion_matrix']
-    classes = np.unique(metrics['true_labels'])
+    y_true = metrics['true_labels']
+    y_pred = metrics['predictions']
+    classes = sorted(np.unique(np.concatenate([y_true, y_pred])))
     class_names = [cls.replace('_', ' ').title() for cls in classes]
 
     fig_cm = go.Figure(data=go.Heatmap(
